@@ -1,68 +1,36 @@
 import OpenAI from "openai";
 import { z } from "zod";
 
-// xAI Grok is accessed through the OpenAI SDK by pointing at the xAI base URL.
-// We use the Responses API (`responses.create`) together with the built-in
-// `web_search` tool so Grok pulls current Ghanaian regulations and fees live.
-// (xAI's old Live Search `search_parameters` API is deprecated -> 410.)
-export const GROK_MODEL = "grok-4.3";
+export const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 
 let client: OpenAI | null = null;
 
 export function getGrokClient(): OpenAI {
-  if (!process.env.XAI_API_KEY) {
+  if (!process.env.GROQ_API_KEY) {
     throw new Error(
-      "XAI_API_KEY is not set. Add it to .env.local (see .env.local.example)."
+      "GROQ_API_KEY is not set. Add it to .env.local (see .env.local.example)."
     );
   }
   if (!client) {
     client = new OpenAI({
-      apiKey: process.env.XAI_API_KEY,
-      baseURL: "https://api.x.ai/v1",
+      apiKey: process.env.GROQ_API_KEY,
+      baseURL: "https://api.groq.com/openai/v1",
     });
   }
   return client;
 }
 
-// Pull the plain-text model output out of a Responses API result, tolerating
-// SDK version differences.
-function extractText(response: unknown): string {
-  const r = response as {
-    output_text?: string;
-    output?: Array<{
-      type?: string;
-      content?: Array<{ type?: string; text?: string }>;
-    }>;
-  };
-
-  if (typeof r.output_text === "string" && r.output_text.trim()) {
-    return r.output_text;
-  }
-
-  let text = "";
-  for (const item of r.output ?? []) {
-    for (const part of item.content ?? []) {
-      if (typeof part.text === "string") text += part.text;
-    }
-  }
-  return text;
-}
-
-// Grok sometimes wraps JSON in ```json fences or adds prose. Pull out the JSON.
 function cleanJson(raw: string): string {
   let text = raw.trim();
-
   const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenceMatch) {
     text = fenceMatch[1].trim();
   }
-
   const firstBrace = text.indexOf("{");
   const lastBrace = text.lastIndexOf("}");
   if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
     text = text.slice(firstBrace, lastBrace + 1);
   }
-
   return text;
 }
 
@@ -72,10 +40,8 @@ interface RunGrokOptions<T> {
   schema: z.ZodType<T>;
 }
 
-type GrokMessage = { role: "system" | "user" | "assistant"; content: string };
-
-// Calls Grok with web_search enabled, expects strict JSON back, validates it
-// against the provided Zod schema, and retries once with a repair prompt.
+// Calls Groq to generate structured JSON, validates against a Zod schema,
+// and retries once with a repair prompt if parsing fails.
 export async function runGrokJson<T>({
   system,
   user,
@@ -83,21 +49,22 @@ export async function runGrokJson<T>({
 }: RunGrokOptions<T>): Promise<T> {
   const grok = getGrokClient();
 
-  async function call(input: GrokMessage[]): Promise<string> {
-    const response = await grok.responses.create({
-      model: GROK_MODEL,
-      input: input as never,
-      tools: [{ type: "web_search" }] as never,
+  async function call(messages: { role: "system" | "user" | "assistant"; content: string }[]): Promise<string> {
+    const response = await grok.chat.completions.create({
+      model: GROQ_MODEL,
+      messages,
+      temperature: 0.2,
+      max_tokens: 4000,
     });
-    return extractText(response);
+    return response.choices[0]?.message?.content || "";
   }
 
-  const baseInput: GrokMessage[] = [
-    { role: "system", content: system },
-    { role: "user", content: user },
+  const baseMessages = [
+    { role: "system" as const, content: system },
+    { role: "user" as const, content: user },
   ];
 
-  const firstRaw = await call(baseInput);
+  const firstRaw = await call(baseMessages);
 
   const tryParse = (raw: string): T | null => {
     try {
@@ -112,9 +79,8 @@ export async function runGrokJson<T>({
   const first = tryParse(firstRaw);
   if (first) return first;
 
-  // Repair pass: feed the broken output back and demand clean JSON only.
   const repairRaw = await call([
-    ...baseInput,
+    ...baseMessages,
     { role: "assistant", content: firstRaw.slice(0, 6000) },
     {
       role: "user",
@@ -128,5 +94,5 @@ export async function runGrokJson<T>({
   const repaired = tryParse(repairRaw);
   if (repaired) return repaired;
 
-  throw new Error("Grok did not return valid structured data. Please try again.");
+  throw new Error("Groq did not return valid structured data. Please try again.");
 }
