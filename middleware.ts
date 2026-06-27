@@ -1,7 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-const protectedRoutes = ["/dashboard", "/setup", "/healthcheck", "/report", "/business", "/onboarding", "/offices"];
+const protectedRoutes = [
+  "/dashboard",
+  "/setup",
+  "/healthcheck",
+  "/report",
+  "/business",
+  "/onboarding",
+  "/offices",
+  "/profile"
+];
 
 type CookieToSet = {
   name: string;
