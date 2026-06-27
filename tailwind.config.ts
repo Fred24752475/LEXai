@@ -21,6 +21,16 @@ const config: Config = {
           800: "#264a34",
           900: "#1f3d2b",
         },
+        amber: {
+          50: "#fdf7ee",
+          100: "#faebd4",
+          200: "#f4d3a3",
+          300: "#ecb668",
+          400: "#e09840",
+          500: "#c97d2e",
+          600: "#a96224",
+          700: "#8a4b1e",
+        },
         gold: {
           50: "#fffbeb",
           100: "#fef3c7",
@@ -62,11 +72,16 @@ const config: Config = {
           "0%": { opacity: "0", transform: "scale(0.96)" },
           "100%": { opacity: "1", transform: "scale(1)" },
         },
+        marquee: {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(calc(-100% - 2rem))" },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.5s ease-out both",
         "fade-in": "fade-in 0.4s ease-out both",
         "scale-in": "scale-in 0.3s ease-out both",
+        marquee: "marquee 40s linear infinite",
       },
     },
   },

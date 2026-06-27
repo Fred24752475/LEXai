@@ -26,7 +26,7 @@ export function Navbar({ email, authed = false }: NavbarProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/80 backdrop-blur-md no-print">
+      <header className="sticky top-0 z-40 border-b border-white/40 bg-white/60 shadow-[0_4px_30px_rgba(15,23,42,0.03)] backdrop-blur-xl no-print">
         <div className="container-page flex min-h-16 flex-wrap items-center justify-between gap-3 py-3">
           <Logo href={authed ? "/dashboard" : "/"} />
 

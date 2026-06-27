@@ -9,14 +9,27 @@ export function Logo({ href = "/" }: { href?: string }) {
           height="20"
           viewBox="0 0 24 24"
           fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
           aria-hidden="true"
         >
-          <path d="M9 12l2 2 4-4" />
-          <path d="M12 3l7 4v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V7l7-4z" />
+          <path
+            d="M6 4.5h12A1.5 1.5 0 0 1 19.5 6v13.5L12 17.25 4.5 19.5V6A1.5 1.5 0 0 1 6 4.5Z"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M8.25 9h7.5M8.25 12h5.25"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+          />
+          <path
+            d="M15.75 14.25 17.25 15.75 20.25 12.75"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
         </svg>
       </span>
       <span className="text-lg font-bold tracking-tight text-ink-900">
