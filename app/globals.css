@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --background: #f8fafc;
+  --background: #fdfbf7;
   --surface: #ffffff;
 }
 
@@ -12,13 +12,13 @@
     -webkit-font-smoothing: antialiased;
   }
   body {
-    @apply bg-slate-50 text-ink-900;
+    @apply bg-[#fdfbf7] text-slate-900;
     background-image: radial-gradient(
         circle at 12% -10%,
-        rgba(16, 185, 129, 0.08),
+        rgba(74, 143, 100, 0.06),
         transparent 40%
       ),
-      radial-gradient(circle at 95% 0%, rgba(245, 158, 11, 0.07), transparent 42%);
+      radial-gradient(circle at 95% 0%, rgba(74, 143, 100, 0.03), transparent 42%);
     background-attachment: fixed;
   }
 }
@@ -29,31 +29,31 @@
   }
 
   .card {
-    @apply rounded-2xl border border-slate-200/80 bg-white shadow-card;
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-sm;
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-brand-500/40 disabled:cursor-not-allowed disabled:opacity-60;
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-brand-500/40 disabled:cursor-not-allowed disabled:opacity-60;
   }
 
   .btn-primary {
-    @apply btn bg-brand-600 text-white shadow-sm hover:bg-brand-700 hover:shadow-lift active:scale-[0.98];
+    @apply relative inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-white transition-all duration-300 ease-out bg-gradient-to-b from-brand-400 to-brand-600 rounded-xl shadow-[0_8px_20px_rgba(74,143,100,0.25)] hover:shadow-[0_12px_25px_rgba(74,143,100,0.4)] hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98];
   }
 
   .btn-secondary {
-    @apply btn border border-slate-300 bg-white text-ink-700 hover:border-brand-400 hover:text-brand-700;
+    @apply btn border border-slate-300 bg-white text-slate-700 hover:border-brand-400 hover:text-brand-700 hover:-translate-y-0.5 hover:shadow-sm active:scale-[0.98];
   }
 
   .btn-ghost {
-    @apply btn text-ink-700 hover:bg-slate-100;
+    @apply btn text-slate-700 hover:bg-slate-100 hover:-translate-y-0.5 active:scale-[0.98];
   }
 
   .input {
-    @apply w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-ink-900 placeholder:text-ink-500 transition focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30;
+    @apply w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-500 transition-all duration-300 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30;
   }
 
   .label {
-    @apply mb-1.5 block text-sm font-medium text-ink-700;
+    @apply mb-1.5 block text-sm font-medium text-slate-700;
   }
 
   .chip {

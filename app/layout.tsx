@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { GeistSans } from "geist/font/sans";
 import "./globals.css";
-
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
   title: "LexGH — AI Business Compliance Guide for Ghana",
@@ -16,8 +14,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable}>
-      <body className="min-h-screen antialiased">{children}</body>
+    <html lang="en" className={`${GeistSans.variable}`}>
+      <body className="min-h-screen antialiased font-sans">{children}</body>
     </html>
   );
 }

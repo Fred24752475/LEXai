@@ -44,7 +44,7 @@ export function GeneratingState({ title, steps }: GeneratingStateProps) {
 
         <h2 className="mt-6 text-xl font-bold text-ink-900">{title}</h2>
         <p className="mt-1 text-sm text-ink-500">
-          Grok is searching the live web for the latest Ghanaian regulations.
+          Lex AI is searching the live web for the latest Ghanaian regulations.
           This can take up to a minute.
         </p>
 
