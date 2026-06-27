@@ -6,10 +6,10 @@ export function PrintButton() {
   return (
     <button
       onClick={() => window.print()}
-      className="rounded-2xl bg-white px-5 py-3 text-sm font-bold text-ink shadow-sm ring-1 ring-slate-200"
+      className="inline-flex items-center gap-2.5 rounded-2xl bg-leaf px-6 py-3 text-sm font-bold text-white shadow-lg shadow-leaf/25 transition-all hover:bg-leaf/90 hover:shadow-xl active:scale-95"
     >
-      <Printer className="mr-2 inline" size={17} />
-      Print / save PDF
+      <Printer size={18} />
+      Print / Save PDF
     </button>
   );
 }

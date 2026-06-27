@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/button";
+import { AlertCircle, Check, Loader2, X } from "lucide-react";
 
 const steps = [
   {
@@ -77,35 +78,59 @@ export function SetupWizard() {
         <h1 className="mt-2 text-3xl font-black text-ink">Business setup wizard</h1>
       </div>
 
+      <div className="mb-6 flex gap-1.5">
+        {steps.map((_, i) => (
+          <div
+            key={i}
+            className={`h-2 flex-1 rounded-full transition-all duration-500 ${
+              i <= currentStep ? "bg-leaf" : "bg-slate-200"
+            }`}
+          />
+        ))}
+      </div>
+
       <label className="mb-6 block">
         <span className="text-sm font-semibold text-slate-700">Business name</span>
         <input
           value={businessName}
           onChange={(event) => setBusinessName(event.target.value)}
           placeholder="e.g. Adinkra Foods Ltd"
-          className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none focus:border-emerald-600"
+          className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 outline-none transition focus:border-emerald-600 focus:ring-2 focus:ring-emerald-100"
         />
       </label>
 
-      <h2 className="mb-4 text-2xl font-black text-ink">{step.title}</h2>
-      <div className="grid gap-3 md:grid-cols-2">
-        {step.options.map((option) => {
-          const selected = answers[step.key] === option;
-          return (
-            <button
-              key={option}
-              type="button"
-              onClick={() => setAnswers((current) => ({ ...current, [step.key]: option }))}
-              className={`rounded-3xl border p-5 text-left font-bold transition ${
-                selected
-                  ? "border-emerald-600 bg-emerald-50 text-leaf"
-                  : "border-slate-200 bg-white text-ink hover:bg-slate-50"
-              }`}
-            >
-              {option}
-            </button>
-          );
-        })}
+      <div key={currentStep} className="animate-fade-in">
+        <h2 className="mb-4 text-2xl font-black text-ink">{step.title}</h2>
+        <div className="grid gap-3 md:grid-cols-2">
+          {step.options.map((option) => {
+            const selected = answers[step.key] === option;
+            return (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setAnswers((current) => ({ ...current, [step.key]: option }))}
+                className={`relative rounded-3xl border p-5 text-left font-bold transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] ${
+                  selected
+                    ? "border-leaf bg-emerald-50 text-leaf ring-2 ring-leaf"
+                    : "border-slate-200 bg-white text-ink hover:border-slate-300 hover:bg-slate-50"
+                }`}
+              >
+                <span className="flex items-center gap-3">
+                  <span
+                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                      selected
+                        ? "border-leaf bg-leaf text-white"
+                        : "border-slate-300"
+                    }`}
+                  >
+                    {selected && <Check size={14} strokeWidth={3} />}
+                  </span>
+                  {option}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
@@ -125,11 +150,31 @@ export function SetupWizard() {
           </Button>
         ) : (
           <Button onClick={submit} disabled={!complete || loading}>
-            {loading ? "Searching Ghana compliance rules..." : "Generate checklist"}
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <Loader2 size={16} className="animate-spin" />
+                Searching Ghana compliance rules...
+              </span>
+            ) : (
+              "Generate checklist"
+            )}
           </Button>
         )}
       </div>
-      {error ? <p className="mt-4 rounded-2xl bg-red-50 p-4 text-sm text-red-700">{error}</p> : null}
+
+      {error ? (
+        <div className="mt-4 flex items-start gap-3 rounded-2xl bg-red-50 p-4 text-sm text-red-700">
+          <AlertCircle size={18} className="mt-0.5 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button
+            type="button"
+            onClick={() => setError("")}
+            className="shrink-0 rounded-lg p-1 transition hover:bg-red-100"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

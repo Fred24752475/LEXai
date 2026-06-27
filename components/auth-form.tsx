@@ -38,6 +38,7 @@ export function AuthForm() {
 
     if (mode === "signup" && !result.data.session) {
       setMessage("Check your email to confirm your account, then log in.");
+      setMode("login");
       return;
     }
 
