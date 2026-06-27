@@ -1,48 +1,80 @@
+import Link from "next/link";
+import { notFound, redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { Navbar } from "@/components/Navbar";
+import { ComplianceChecklist } from "@/components/ComplianceChecklist";
+import { HealthCheckReport } from "@/components/HealthCheckReport";
+import { checklistSchema, healthCheckSchema } from "@/lib/schemas";
+
+export const metadata = { title: "Report — LexGH" };
 export const dynamic = "force-dynamic";
 
-import { notFound } from "next/navigation";
-import { AppShell } from "@/components/shell";
-import { ReportRenderer } from "@/components/report-renderer";
-import { PrintButton } from "@/components/print-button";
-import { createClient } from "@/lib/supabase/server";
-import { formatDate } from "@/lib/utils";
-import type { ComplianceReport } from "@/lib/types";
-
-type ReportWithBusiness = Pick<
-  ComplianceReport,
-  "id" | "report_type" | "score" | "created_at" | "data"
-> & {
-  businesses: { name: string; type: string } | { name: string; type: string }[] | null;
-};
-
-export default async function ReportPage({ params }: { params: { id: string } }) {
+export default async function ReportPage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const supabase = createClient();
-  const { data } = await supabase
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) redirect(`/login?redirectedFrom=/report/${params.id}`);
+
+  const { data: report } = await supabase
     .from("compliance_reports")
-    .select("id, report_type, score, created_at, data, businesses(name, type)")
+    .select("id, report_type, data, created_at")
     .eq("id", params.id)
-    .single();
+    .maybeSingle();
 
-  if (!data) notFound();
-
-  const report = data as unknown as ReportWithBusiness;
-  const business = Array.isArray(report.businesses) ? report.businesses[0] : report.businesses;
+  if (!report) notFound();
 
   return (
-    <AppShell>
-      <div className="print-page">
-        <div className="no-print mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-bold uppercase tracking-[0.2em] text-leaf">Saved report</p>
-            <h1 className="mt-2 text-3xl font-black text-ink">
-              {business?.name ?? "Compliance report"}
-            </h1>
-            <p className="mt-1 text-slate-500">{formatDate(report.created_at)}</p>
-          </div>
-          <PrintButton />
+    <>
+      <Navbar authed email={user.email} />
+      <main className="container-page print-full py-8 sm:py-10">
+        <div className="mb-6 no-print">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-500 hover:text-brand-700"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+            Back to dashboard
+          </Link>
         </div>
-        <ReportRenderer type={report.report_type} data={report.data} />
-      </div>
-    </AppShell>
+
+        <ReportBody type={report.report_type} data={report.data} />
+      </main>
+    </>
+  );
+}
+
+function ReportBody({ type, data }: { type: string; data: unknown }) {
+  if (type === "checklist") {
+    const parsed = checklistSchema.safeParse(data);
+    if (parsed.success) return <ComplianceChecklist data={parsed.data} />;
+  }
+  if (type === "healthcheck") {
+    const parsed = healthCheckSchema.safeParse(data);
+    if (parsed.success) return <HealthCheckReport data={parsed.data} />;
+  }
+  return (
+    <div className="card p-8 text-center">
+      <p className="text-ink-700">
+        This report could not be displayed. The stored data may be incomplete.
+      </p>
+    </div>
   );
 }

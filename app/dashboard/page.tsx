@@ -1,274 +1,205 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { Navbar } from "@/components/Navbar";
+
+export const metadata = { title: "Dashboard — LexGH" };
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
-import {
-  FileText,
-  PlusCircle,
-  ShieldCheck,
-  ClipboardList,
-  HeartPulse,
-  Sparkles,
-  ArrowRight,
-  BarChart3
-} from "lucide-react";
-import { ButtonLink } from "@/components/button";
-import { AppShell } from "@/components/shell";
-import { createClient } from "@/lib/supabase/server";
-import { formatDate, cn } from "@/lib/utils";
-import type { ComplianceReport } from "@/lib/types";
+interface ReportRow {
+  id: string;
+  report_type: "checklist" | "healthcheck";
+  score: number | null;
+  created_at: string;
+}
 
-type DashboardReport = Pick<
-  ComplianceReport,
-  "id" | "report_type" | "score" | "created_at" | "data"
-> & {
-  businesses: { name: string; type: string } | { name: string; type: string }[] | null;
-};
+interface BusinessRow {
+  id: string;
+  name: string;
+  type: "new" | "existing";
+  created_at: string;
+  compliance_reports: ReportRow[];
+}
 
-const reportIcons = {
-  checklist: ClipboardList,
-  healthcheck: HeartPulse
-} as const;
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
 
-const reportLabels = {
-  checklist: "Checklist",
-  healthcheck: "Health Check"
-} as const;
-
-const reportColors = {
-  checklist: "bg-emerald-100 text-leaf",
-  healthcheck: "bg-amber-100 text-gold"
-} as const;
+function scoreColor(score: number) {
+  if (score >= 75) return "text-brand-700 bg-brand-50 ring-brand-100";
+  if (score >= 50) return "text-gold-600 bg-gold-50 ring-gold-200";
+  return "text-red-600 bg-red-50 ring-red-100";
+}
 
 export default async function DashboardPage() {
   const supabase = createClient();
   const {
-    data: { user }
+    data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: reports } = await supabase
-    .from("compliance_reports")
-    .select("id, report_type, score, created_at, data, businesses(name, type)")
-    .order("created_at", { ascending: false })
-    .limit(20);
-  const savedReports = (reports ?? []) as unknown as DashboardReport[];
+  if (!user) redirect("/login?redirectedFrom=/dashboard");
 
-  const checklistCount = savedReports.filter(
-    (r) => r.report_type === "checklist"
-  ).length;
-  const healthcheckCount = savedReports.filter(
-    (r) => r.report_type === "healthcheck"
-  ).length;
+  const { data: businesses } = await supabase
+    .from("businesses")
+    .select("id, name, type, created_at, compliance_reports(id, report_type, score, created_at)")
+    .order("created_at", { ascending: false });
+
+  const rows = (businesses ?? []) as BusinessRow[];
+  const totalReports = rows.reduce(
+    (sum, b) => sum + (b.compliance_reports?.length ?? 0),
+    0
+  );
 
   return (
-    <AppShell>
-      {/* ── Welcome section ── */}
-      <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-leaf">
-            Dashboard
-          </p>
-          <h1 className="mt-2 text-4xl font-black text-ink">
-            Welcome back
-            {user?.email ? `, ${user.email.split("@")[0]}` : ""}
-          </h1>
-          <p className="mt-2 text-slate-600">{user?.email}</p>
+    <>
+      <Navbar authed email={user.email} />
+      <main className="container-page py-8 sm:py-12">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-ink-900">Your dashboard</h1>
+            <p className="mt-1 text-ink-500">
+              {rows.length} business{rows.length === 1 ? "" : "es"} ·{" "}
+              {totalReports} saved report{totalReports === 1 ? "" : "s"}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/setup" className="btn-primary">
+              + New setup checklist
+            </Link>
+            <Link href="/healthcheck" className="btn-secondary">
+              + Health check
+            </Link>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-3">
-          <ButtonLink href="/setup">
-            <PlusCircle className="mr-2" size={18} /> New checklist
-          </ButtonLink>
-          <ButtonLink href="/healthcheck" variant="secondary">
-            <ShieldCheck className="mr-2" size={18} /> Health check
-          </ButtonLink>
-        </div>
-      </div>
 
-      {/* ── Stats cards ── */}
-      <section className="grid gap-4 md:grid-cols-3">
-        {(
-          [
-            ["Total Reports", savedReports.length, BarChart3, "bg-violet-100 text-violet-700"],
-            ["Checklists", checklistCount, ClipboardList, "bg-emerald-100 text-leaf"],
-            ["Health Checks", healthcheckCount, HeartPulse, "bg-amber-100 text-gold"]
-          ] as const
-        ).map(([label, value, Icon, iconColor]) => (
-          <div
-            key={label}
-            className="group relative overflow-hidden rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 transition-all hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-slate-500">{label}</p>
-                <p className="mt-2 text-4xl font-black text-ink">{value}</p>
-              </div>
-              <span className={cn("rounded-2xl p-3", iconColor)}>
-                <Icon size={22} />
-              </span>
+        {rows.length === 0 ? (
+          <div className="card mt-8 flex flex-col items-center justify-center p-12 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
+              <svg
+                width="26"
+                height="26"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                <path d="M14 2v6h6" />
+                <path d="M9 15l2 2 4-4" />
+              </svg>
+            </div>
+            <h2 className="mt-4 text-lg font-semibold text-ink-900">
+              No reports yet
+            </h2>
+            <p className="mt-1 max-w-sm text-sm text-ink-500">
+              Generate your first compliance checklist or run a health check to
+              see it saved here.
+            </p>
+            <div className="mt-6 flex gap-3">
+              <Link href="/setup" className="btn-primary">
+                Start setup wizard
+              </Link>
+              <Link href="/healthcheck" className="btn-secondary">
+                Run health check
+              </Link>
             </div>
           </div>
-        ))}
-      </section>
-
-      {/* ── Quick actions ── */}
-      <section className="mt-8">
-        <h2 className="mb-4 text-2xl font-black text-ink">Quick actions</h2>
-        <div className="grid gap-4 md:grid-cols-3">
-          <Link
-            href="/setup"
-            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-50 to-white p-6 ring-1 ring-emerald-200 transition-all hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg font-black text-leaf">New Checklist</p>
-                <p className="mt-1 text-sm text-slate-600">
-                  Generate a compliance checklist for your business
-                </p>
-              </div>
-              <span className="rounded-2xl bg-emerald-100 p-3 text-leaf transition-all group-hover:bg-emerald-200">
-                <ClipboardList size={22} />
-              </span>
-            </div>
-            <ArrowRight
-              className="mt-4 text-emerald-600 transition-transform group-hover:translate-x-1"
-              size={18}
-            />
-          </Link>
-
-          <Link
-            href="/healthcheck"
-            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-50 to-white p-6 ring-1 ring-amber-200 transition-all hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg font-black text-gold">Health Check</p>
-                <p className="mt-1 text-sm text-slate-600">
-                  Assess your business compliance health
-                </p>
-              </div>
-              <span className="rounded-2xl bg-amber-100 p-3 text-gold transition-all group-hover:bg-amber-200">
-                <HeartPulse size={22} />
-              </span>
-            </div>
-            <ArrowRight
-              className="mt-4 text-amber-600 transition-transform group-hover:translate-x-1"
-              size={18}
-            />
-          </Link>
-
-          <Link
-            href="/dashboard#reports"
-            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-sky-50 to-white p-6 ring-1 ring-sky-200 transition-all hover:-translate-y-0.5 hover:shadow-md"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-lg font-black text-ink">View Reports</p>
-                <p className="mt-1 text-sm text-slate-600">
-                  Browse all your saved compliance reports
-                </p>
-              </div>
-              <span className="rounded-2xl bg-sky-100 p-3 text-sky-700 transition-all group-hover:bg-sky-200">
-                <FileText size={22} />
-              </span>
-            </div>
-            <ArrowRight
-              className="mt-4 text-sky-600 transition-transform group-hover:translate-x-1"
-              size={18}
-            />
-          </Link>
-        </div>
-      </section>
-
-      {/* ── Saved reports ── */}
-      <section
-        id="reports"
-        className="mt-8 scroll-mt-24 rounded-3xl bg-white p-6 shadow-soft ring-1 ring-slate-200"
-      >
-        <h2 className="mb-5 text-2xl font-black text-ink">Saved reports</h2>
-        <div className="grid gap-3">
-          {savedReports.length ? (
-            savedReports.map((report) => {
-              const business = Array.isArray(report.businesses)
-                ? report.businesses[0]
-                : report.businesses;
-
-              const Icon =
-                reportIcons[
-                  report.report_type as keyof typeof reportIcons
-                ] ?? FileText;
-              const iconColor =
-                reportColors[
-                  report.report_type as keyof typeof reportColors
-                ] ?? "bg-slate-100 text-slate-600";
-              const label =
-                reportLabels[
-                  report.report_type as keyof typeof reportLabels
-                ] ?? "Report";
-
-              return (
-                <Link
-                  key={report.id}
-                  href={`/report/${report.id}`}
-                  className="group flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-slate-200 p-4 transition-all hover:translate-x-0.5 hover:border-leaf/20 hover:bg-emerald-50/40 hover:shadow-sm"
-                >
+        ) : (
+          <div className="mt-8 grid gap-5">
+            {rows.map((biz) => (
+              <div key={biz.id} className="card p-6">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-3">
-                    <span
-                      className={cn(
-                        "rounded-2xl p-3 transition-colors",
-                        iconColor
-                      )}
-                    >
-                      <Icon size={19} />
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                      <svg
+                        width="20"
+                        height="20"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M3 21h18" />
+                        <path d="M5 21V7l8-4v18" />
+                        <path d="M19 21V11l-6-4" />
+                      </svg>
                     </span>
                     <div>
-                      <p className="font-black text-ink transition-colors group-hover:text-leaf">
-                        {business?.name ?? "Business report"}
-                      </p>
-                      <p className="text-sm capitalize text-slate-500">
-                        {label} &bull; {formatDate(report.created_at)}
+                      <h2 className="font-semibold text-ink-900">{biz.name}</h2>
+                      <p className="text-xs text-ink-500">
+                        {biz.type === "new" ? "New business" : "Existing business"}{" "}
+                        · added {formatDate(biz.created_at)}
                       </p>
                     </div>
                   </div>
-                  {report.score !== null ? (
-                    <span className="rounded-full bg-slate-100 px-4 py-2 text-sm font-black text-ink transition-colors group-hover:bg-emerald-100 group-hover:text-leaf">
-                      Score {report.score}
-                    </span>
-                  ) : null}
-                </Link>
-              );
-            })
-          ) : (
-            <div className="flex flex-col items-center rounded-2xl bg-gradient-to-b from-slate-50 to-white p-10 text-center">
-              <span className="rounded-2xl bg-emerald-100 p-4 text-leaf">
-                <Sparkles size={32} />
-              </span>
-              <h3 className="mt-4 text-xl font-black text-ink">
-                No reports yet
-              </h3>
-              <p className="mt-2 max-w-sm text-sm text-slate-500">
-                Generate your first compliance checklist or health check to get
-                started.
-              </p>
-              <div className="mt-6 flex gap-3">
-                <ButtonLink href="/setup">
-                  <PlusCircle className="mr-2" size={16} /> New checklist
-                </ButtonLink>
-                <ButtonLink href="/healthcheck" variant="secondary">
-                  <ShieldCheck className="mr-2" size={16} /> Health check
-                </ButtonLink>
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
+                </div>
 
-      {/* ── Floating action button ── */}
-      <Link
-        href="/setup"
-        className="no-print fixed bottom-8 right-8 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-leaf to-emerald-600 text-white shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl md:h-16 md:w-16"
-        title="Generate new report"
-      >
-        <PlusCircle size={24} />
-      </Link>
-    </AppShell>
+                <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
+                  {(biz.compliance_reports ?? []).length === 0 ? (
+                    <p className="text-sm text-ink-500">No reports saved.</p>
+                  ) : (
+                    biz.compliance_reports
+                      .slice()
+                      .sort((a, b) => b.created_at.localeCompare(a.created_at))
+                      .map((r) => (
+                        <Link
+                          key={r.id}
+                          href={`/report/${r.id}`}
+                          className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 transition hover:border-brand-300 hover:bg-brand-50/40"
+                        >
+                          <span className="flex items-center gap-3">
+                            <span className="badge-authority">
+                              {r.report_type === "checklist"
+                                ? "Setup Checklist"
+                                : "Health Check"}
+                            </span>
+                            <span className="text-sm text-ink-500">
+                              {formatDate(r.created_at)}
+                            </span>
+                          </span>
+                          <span className="flex items-center gap-3">
+                            {r.report_type === "healthcheck" &&
+                            r.score !== null ? (
+                              <span
+                                className={`chip ring-1 ring-inset ${scoreColor(r.score)}`}
+                              >
+                                Score {r.score}
+                              </span>
+                            ) : null}
+                            <svg
+                              width="18"
+                              height="18"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              className="text-ink-300"
+                              aria-hidden="true"
+                            >
+                              <path d="M9 18l6-6-6-6" />
+                            </svg>
+                          </span>
+                        </Link>
+                      ))
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+    </>
   );
 }

@@ -1,27 +1,38 @@
 import { Suspense } from "react";
-import { AuthForm } from "@/components/auth-form";
-import { PublicShell } from "@/components/shell";
+import Link from "next/link";
+import { Logo } from "@/components/Logo";
+import { AuthForm } from "@/components/AuthForm";
+
+export const metadata = {
+  title: "Log in — LexGH",
+};
 
 export default function LoginPage() {
   return (
-    <PublicShell>
-      <section className="mx-auto grid max-w-5xl gap-10 px-6 py-16 md:grid-cols-[1fr_420px] md:items-center">
-        <div>
-          <p className="mb-4 text-sm font-bold uppercase tracking-[0.25em] text-leaf">
-            Secure workspace
-          </p>
-          <h1 className="text-4xl font-black tracking-tight text-ink">
-            Save every business profile and compliance report.
-          </h1>
-          <p className="mt-5 text-lg leading-8 text-slate-600">
-            Sign in to generate Ghana-specific startup checklists, audit existing businesses and
-            access saved reports from your dashboard.
+    <main className="min-h-screen">
+      <div className="container-page flex h-16 items-center">
+        <Logo href="/" />
+      </div>
+
+      <div className="container-page flex flex-col items-center justify-center py-10 sm:py-16">
+        <div className="w-full max-w-md">
+          <Suspense
+            fallback={
+              <div className="card h-[480px] animate-pulse bg-slate-50" />
+            }
+          >
+            <AuthForm />
+          </Suspense>
+
+          <p className="mt-6 text-center text-sm text-ink-500">
+            By continuing you agree to use LexGH guidance as informational
+            support, not legal advice.{" "}
+            <Link href="/" className="font-medium text-brand-700 hover:underline">
+              Back home
+            </Link>
           </p>
         </div>
-        <Suspense>
-          <AuthForm />
-        </Suspense>
-      </section>
-    </PublicShell>
+      </div>
+    </main>
   );
 }

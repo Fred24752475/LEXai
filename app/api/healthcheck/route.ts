@@ -1,39 +1,69 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { generateHealthCheck } from "@/lib/grok";
 import { createClient } from "@/lib/supabase/server";
+import { runGrokJson } from "@/lib/grok";
+import { healthCheckSchema } from "@/lib/schemas";
+import { buildHealthCheckPrompts } from "@/lib/prompts";
 
-const healthcheckSchema = z.object({
-  businessName: z.string().min(2),
-  description: z.string().min(20)
+export const runtime = "nodejs";
+export const maxDuration = 120;
+
+const requestSchema = z.object({
+  businessName: z.string().trim().min(2).max(120),
+  description: z.string().trim().min(20).max(4000),
 });
 
 export async function POST(request: Request) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.json({ error: "Not authenticated." }, { status: 401 });
+  }
+
+  let body: unknown;
   try {
-    const payload = healthcheckSchema.parse(await request.json());
-    const supabase = createClient();
-    const {
-      data: { user },
-      error: authError
-    } = await supabase.auth.getUser();
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
 
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+  const parsed = requestSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      {
+        error:
+          "Please provide a business name and a description of at least 20 characters.",
+      },
+      { status: 400 }
+    );
+  }
 
-    const audit = await generateHealthCheck(payload);
+  const { businessName, description } = parsed.data;
+
+  try {
+    const { system, user: userPrompt } = buildHealthCheckPrompts(
+      businessName,
+      description
+    );
+
+    const audit = await runGrokJson({
+      system,
+      user: userPrompt,
+      schema: healthCheckSchema,
+    });
 
     const { data: business, error: businessError } = await supabase
       .from("businesses")
-      .insert({
-        user_id: user.id,
-        name: payload.businessName,
-        type: "existing"
-      })
+      .insert({ user_id: user.id, name: businessName, type: "existing" })
       .select("id")
       .single();
 
-    if (businessError) throw businessError;
+    if (businessError || !business) {
+      throw new Error(businessError?.message ?? "Failed to save business.");
+    }
 
     const { data: report, error: reportError } = await supabase
       .from("compliance_reports")
@@ -41,16 +71,19 @@ export async function POST(request: Request) {
         business_id: business.id,
         report_type: "healthcheck",
         score: audit.score,
-        data: audit
+        data: audit,
       })
       .select("id")
       .single();
 
-    if (reportError) throw reportError;
+    if (reportError || !report) {
+      throw new Error(reportError?.message ?? "Failed to save report.");
+    }
 
     return NextResponse.json({ reportId: report.id, data: audit });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to generate health check.";
-    return NextResponse.json({ error: message }, { status: 400 });
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Something went wrong.";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

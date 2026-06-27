@@ -3,94 +3,83 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: light;
+  --background: #fdfbf7;
+  --surface: #ffffff;
 }
 
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  background: #f8fafc;
-  color: #111827;
-}
-
-::selection {
-  background: #fde68a;
-  color: #111827;
-}
-
-.print-page {
-  background: white;
-}
-
-@keyframes fade-in-up {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
   }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes fade-in {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes scale-in {
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-@media print {
   body {
-    background: white !important;
+    @apply bg-[#fdfbf7] text-slate-900;
+    background-image: radial-gradient(
+        circle at 12% -10%,
+        rgba(74, 143, 100, 0.06),
+        transparent 40%
+      ),
+      radial-gradient(circle at 95% 0%, rgba(74, 143, 100, 0.03), transparent 42%);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-5 sm:px-8;
   }
 
+  .card {
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-sm;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-300 ease-out focus:outline-none focus:ring-2 focus:ring-brand-500/40 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-primary {
+    @apply relative inline-flex items-center justify-center px-6 py-3 text-base font-semibold text-white transition-all duration-300 ease-out bg-gradient-to-b from-brand-400 to-brand-600 rounded-xl shadow-[0_8px_20px_rgba(74,143,100,0.25)] hover:shadow-[0_12px_25px_rgba(74,143,100,0.4)] hover:-translate-y-0.5 hover:scale-[1.02] active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply btn border border-slate-300 bg-white text-slate-700 hover:border-brand-400 hover:text-brand-700 hover:-translate-y-0.5 hover:shadow-sm active:scale-[0.98];
+  }
+
+  .btn-ghost {
+    @apply btn text-slate-700 hover:bg-slate-100 hover:-translate-y-0.5 active:scale-[0.98];
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 placeholder:text-slate-500 transition-all duration-300 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30;
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-slate-700;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium;
+  }
+
+  .badge-authority {
+    @apply chip bg-brand-50 text-brand-700 ring-1 ring-inset ring-brand-100;
+  }
+}
+
+/* Print styles for report pages */
+@media print {
   .no-print {
     display: none !important;
   }
-
-  article,
-  section {
+  body {
+    background: #ffffff !important;
+    background-image: none !important;
+  }
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0 !important;
     break-inside: avoid;
-    page-break-inside: avoid;
   }
-
-  @page {
-    margin: 1.5cm;
-    size: A4;
-  }
-
-  .shadow-soft,
-  .shadow-sm,
-  .shadow-md,
-  .shadow-lg {
-    box-shadow: none !important;
-  }
-
-  [class*="ring-"] {
-    --tw-ring-opacity: 1 !important;
-    --tw-ring-color: rgb(226 232 240 / var(--tw-ring-opacity)) !important;
-    box-shadow: none !important;
-  }
-
-  svg {
-    print-color-adjust: exact;
-    -webkit-print-color-adjust: exact;
+  .print-full {
+    max-width: 100% !important;
   }
 }

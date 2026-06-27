@@ -1,126 +1,132 @@
 import OpenAI from "openai";
-import type { ChecklistData, HealthCheckData } from "@/lib/types";
+import { z } from "zod";
 
-const model = process.env.XAI_MODEL || "grok-4.3";
+// xAI Grok is accessed through the OpenAI SDK by pointing at the xAI base URL.
+// We use the Responses API (`responses.create`) together with the built-in
+// `web_search` tool so Grok pulls current Ghanaian regulations and fees live.
+// (xAI's old Live Search `search_parameters` API is deprecated -> 410.)
+export const GROK_MODEL = "grok-4.3";
 
-function getClient() {
-  const apiKey = process.env.XAI_API_KEY;
+let client: OpenAI | null = null;
 
-  if (!apiKey) {
-    throw new Error("Missing XAI_API_KEY environment variable.");
+export function getGrokClient(): OpenAI {
+  if (!process.env.XAI_API_KEY) {
+    throw new Error(
+      "XAI_API_KEY is not set. Add it to .env.local (see .env.local.example)."
+    );
+  }
+  if (!client) {
+    client = new OpenAI({
+      apiKey: process.env.XAI_API_KEY,
+      baseURL: "https://api.x.ai/v1",
+    });
+  }
+  return client;
+}
+
+// Pull the plain-text model output out of a Responses API result, tolerating
+// SDK version differences.
+function extractText(response: unknown): string {
+  const r = response as {
+    output_text?: string;
+    output?: Array<{
+      type?: string;
+      content?: Array<{ type?: string; text?: string }>;
+    }>;
+  };
+
+  if (typeof r.output_text === "string" && r.output_text.trim()) {
+    return r.output_text;
   }
 
-  return new OpenAI({
-    apiKey,
-    baseURL: "https://api.x.ai/v1"
-  });
-}
-
-function extractJson(content: string) {
-  const trimmed = content.trim();
-  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  return JSON.parse(fenced ? fenced[1] : trimmed);
-}
-
-async function generateJson<T>(system: string, user: string): Promise<T> {
-  const client = getClient();
-
-  const completion = await client.chat.completions.create({
-    model,
-    temperature: 0.2,
-    response_format: { type: "json_object" },
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: user }
-    ],
-    // xAI live search uses OpenAI-compatible chat plus xAI-specific search parameters.
-    search_parameters: {
-      mode: "auto",
-      sources: [{ type: "web" }]
+  let text = "";
+  for (const item of r.output ?? []) {
+    for (const part of item.content ?? []) {
+      if (typeof part.text === "string") text += part.text;
     }
-  } as any);
+  }
+  return text;
+}
 
-  const content = completion.choices[0]?.message?.content;
-  if (!content) {
-    throw new Error("Grok returned an empty response.");
+// Grok sometimes wraps JSON in ```json fences or adds prose. Pull out the JSON.
+function cleanJson(raw: string): string {
+  let text = raw.trim();
+
+  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenceMatch) {
+    text = fenceMatch[1].trim();
   }
 
-  return extractJson(content) as T;
+  const firstBrace = text.indexOf("{");
+  const lastBrace = text.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    text = text.slice(firstBrace, lastBrace + 1);
+  }
+
+  return text;
 }
 
-const sharedRules = `
-You are LexGH, a precise Ghana business compliance assistant for entrepreneurs and SMEs.
-Use live web search before answering. Prefer current Ghana sources and agency sites such as ORC, GRA, SSNIT, Labour Department, Registrar-General's Department and Ghana.gov.
-Do not invent citations. Put source names or URLs in sourceHint/sourcesToVerify fields.
-Return only valid JSON. No markdown. No legal disclaimer paragraph.
-`;
-
-export async function generateChecklist(input: {
-  businessName: string;
-  sector: string;
-  structure: string;
-  employees: string;
-  location: string;
-  revenueStage: string;
-}) {
-  return generateJson<ChecklistData>(
-    `${sharedRules}
-Return JSON with this exact shape:
-{
-  "title": "string",
-  "summary": "string",
-  "assumptions": ["string"],
-  "checklist": [
-    {
-      "category": "string",
-      "priority": "High|Medium|Low",
-      "action": "string",
-      "agency": "string",
-      "timeline": "string",
-      "estimatedCostGHS": "string",
-      "sourceHint": "string"
-    }
-  ],
-  "documents": ["string"],
-  "nextSteps": ["string"]
-}`,
-    `Create a personalised startup compliance checklist for a Ghanaian business:
-Business name: ${input.businessName}
-Sector: ${input.sector}
-Legal structure preference: ${input.structure}
-Employees: ${input.employees}
-Location: ${input.location}
-Revenue stage: ${input.revenueStage}
-
-Include current registration, tax, employment and sector-specific obligations.`
-  );
+interface RunGrokOptions<T> {
+  system: string;
+  user: string;
+  schema: z.ZodType<T>;
 }
 
-export async function generateHealthCheck(input: { businessName: string; description: string }) {
-  return generateJson<HealthCheckData>(
-    `${sharedRules}
-Return JSON with this exact shape:
-{
-  "title": "string",
-  "summary": "string",
-  "score": 0,
-  "riskLevel": "Low|Medium|High|Critical",
-  "audit": [
-    {
-      "area": "string",
-      "status": "Compliant|Needs attention|At risk|Unknown",
-      "finding": "string",
-      "priorityAction": "string",
-      "agency": "string"
-    }
-  ],
-  "priorityActions": ["string"],
-  "sourcesToVerify": ["string"]
-}`,
-    `Audit this Ghanaian business for compliance gaps using current Ghana rules.
-Business name: ${input.businessName}
-Business description: ${input.description}
+type GrokMessage = { role: "system" | "user" | "assistant"; content: string };
 
-Score from 0 to 100. Evaluate ORC registration, GRA tax, VAT where relevant, SSNIT, employment, permits and industry obligations.`
-  );
+// Calls Grok with web_search enabled, expects strict JSON back, validates it
+// against the provided Zod schema, and retries once with a repair prompt.
+export async function runGrokJson<T>({
+  system,
+  user,
+  schema,
+}: RunGrokOptions<T>): Promise<T> {
+  const grok = getGrokClient();
+
+  async function call(input: GrokMessage[]): Promise<string> {
+    const response = await grok.responses.create({
+      model: GROK_MODEL,
+      input: input as never,
+      tools: [{ type: "web_search" }] as never,
+    });
+    return extractText(response);
+  }
+
+  const baseInput: GrokMessage[] = [
+    { role: "system", content: system },
+    { role: "user", content: user },
+  ];
+
+  const firstRaw = await call(baseInput);
+
+  const tryParse = (raw: string): T | null => {
+    try {
+      const parsed = JSON.parse(cleanJson(raw));
+      const result = schema.safeParse(parsed);
+      return result.success ? result.data : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const first = tryParse(firstRaw);
+  if (first) return first;
+
+  // Repair pass: feed the broken output back and demand clean JSON only.
+  const repairRaw = await call([
+    ...baseInput,
+    { role: "assistant", content: firstRaw.slice(0, 6000) },
+    {
+      role: "user",
+      content:
+        "Your previous response was not valid JSON matching the required schema. " +
+        "Respond again with ONLY the corrected, complete, minified JSON object. " +
+        "No prose, no markdown fences.",
+    },
+  ]);
+
+  const repaired = tryParse(repairRaw);
+  if (repaired) return repaired;
+
+  throw new Error("Grok did not return valid structured data. Please try again.");
 }
