@@ -6,6 +6,13 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
 import type { ComplianceReport } from "@/lib/types";
 
+type DashboardReport = Pick<
+  ComplianceReport,
+  "id" | "report_type" | "score" | "created_at" | "data"
+> & {
+  businesses: { name: string; type: string } | { name: string; type: string }[] | null;
+};
+
 export default async function DashboardPage() {
   const supabase = createClient();
   const {
@@ -17,6 +24,7 @@ export default async function DashboardPage() {
     .select("id, report_type, score, created_at, data, businesses(name, type)")
     .order("created_at", { ascending: false })
     .limit(20);
+  const savedReports = (reports ?? []) as unknown as DashboardReport[];
 
   return (
     <AppShell>
@@ -38,9 +46,9 @@ export default async function DashboardPage() {
 
       <section className="grid gap-4 md:grid-cols-3">
         {[
-          ["Reports", reports?.length ?? 0],
-          ["Checklists", reports?.filter((report) => report.report_type === "checklist").length ?? 0],
-          ["Health checks", reports?.filter((report) => report.report_type === "healthcheck").length ?? 0]
+          ["Reports", savedReports.length],
+          ["Checklists", savedReports.filter((report) => report.report_type === "checklist").length],
+          ["Health checks", savedReports.filter((report) => report.report_type === "healthcheck").length]
         ].map(([label, value]) => (
           <div key={label} className="rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
             <p className="text-sm font-semibold text-slate-500">{label}</p>
@@ -52,8 +60,13 @@ export default async function DashboardPage() {
       <section className="mt-8 rounded-3xl bg-white p-6 shadow-soft ring-1 ring-slate-200">
         <h2 className="mb-5 text-2xl font-black text-ink">Saved reports</h2>
         <div className="grid gap-3">
-          {(reports as ComplianceReport[] | null)?.length ? (
-            (reports as ComplianceReport[]).map((report) => (
+          {savedReports.length ? (
+            savedReports.map((report) => {
+              const business = Array.isArray(report.businesses)
+                ? report.businesses[0]
+                : report.businesses;
+
+              return (
               <Link
                 key={report.id}
                 href={`/report/${report.id}`}
@@ -64,7 +77,7 @@ export default async function DashboardPage() {
                     <FileText size={19} />
                   </span>
                   <div>
-                    <p className="font-black text-ink">{report.businesses?.name ?? "Business report"}</p>
+                    <p className="font-black text-ink">{business?.name ?? "Business report"}</p>
                     <p className="text-sm capitalize text-slate-500">
                       {report.report_type} • {formatDate(report.created_at)}
                     </p>
@@ -76,7 +89,8 @@ export default async function DashboardPage() {
                   </span>
                 ) : null}
               </Link>
-            ))
+              );
+            })
           ) : (
             <div className="rounded-2xl bg-slate-50 p-8 text-center">
               <p className="font-bold text-slate-700">No reports yet.</p>
