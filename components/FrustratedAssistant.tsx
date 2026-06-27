@@ -223,7 +223,7 @@ export function FrustratedAssistant({
               </button>
             ))}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row">
             <textarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
@@ -231,7 +231,7 @@ export function FrustratedAssistant({
               className="input min-h-[52px] resize-none"
               placeholder="Tell LexAI what is frustrating you..."
             />
-            <button onClick={() => sendMessage()} disabled={loading} className="btn-primary self-end">
+            <button onClick={() => sendMessage()} disabled={loading} className="btn-primary sm:self-end">
               Send
             </button>
           </div>
