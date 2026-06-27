@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Navbar } from "@/components/Navbar";
+import { DocumentVerificationButton, type VerificationState } from "@/components/DocumentVerificationButton";
 import { checklistSchema, healthCheckSchema } from "@/lib/schemas";
 
 export const metadata = { title: "Business — LexGH" };
@@ -20,6 +21,25 @@ interface UrgentItem {
   authority: string;
   description: string;
   reportId: string;
+}
+
+interface ChecklistVerificationItem {
+  reportId: string;
+  stepIndex: number;
+  title: string;
+  authority: string;
+  description: string;
+  requiredDocuments: string[];
+}
+
+interface VerificationRow {
+  id: string;
+  report_id: string;
+  verification_kind: "checklist_step" | "health_action";
+  step_index: number;
+  status: "verified" | "failed";
+  message: string;
+  checked_at: string;
 }
 
 interface AuthorityStatus {
@@ -77,6 +97,33 @@ function collectUrgentItems(reports: ReportRow[]): UrgentItem[] {
   return items;
 }
 
+function collectChecklistVerificationItems(reports: ReportRow[]): ChecklistVerificationItem[] {
+  const items: ChecklistVerificationItem[] = [];
+
+  for (const report of reports) {
+    if (report.report_type !== "checklist") continue;
+    const parsed = checklistSchema.safeParse(report.data);
+    if (!parsed.success) continue;
+
+    parsed.data.steps.forEach((step, index) => {
+      items.push({
+        reportId: report.id,
+        stepIndex: index,
+        title: step.title,
+        authority: step.authority,
+        description: step.description,
+        requiredDocuments: step.requiredDocuments
+      });
+    });
+  }
+
+  return items;
+}
+
+function verificationKey(reportId: string, kind: "checklist_step" | "health_action", stepIndex: number) {
+  return `${reportId}:${kind}:${stepIndex}`;
+}
+
 const AUTHORITY_CONFIG = [
   { key: "gra", label: "Tax (GRA)", terms: ["gra", "tax", "revenue"] },
   { key: "orc", label: "Registration (ORC)", terms: ["orc", "registration", "registrar of companies"] },
@@ -123,7 +170,30 @@ export default async function BusinessPage({ params }: { params: { id: string } 
 
   const reports = (business.compliance_reports ?? []) as ReportRow[];
   const urgentItems = collectUrgentItems(reports);
+  const checklistVerificationItems = collectChecklistVerificationItems(reports);
   const complianceStatuses = getComplianceStatuses(reports);
+  const reportIds = reports.map((report) => report.id);
+  const { data: verifications } = reportIds.length
+    ? await supabase
+        .from("document_verifications")
+        .select("id, report_id, verification_kind, step_index, status, message, checked_at")
+        .in("report_id", reportIds)
+    : { data: [] };
+  const verificationMap = new Map(
+    ((verifications ?? []) as VerificationRow[]).map((verification) => [
+      verificationKey(
+        verification.report_id,
+        verification.verification_kind,
+        verification.step_index
+      ),
+      {
+        id: verification.id,
+        status: verification.status,
+        message: verification.message,
+        checked_at: verification.checked_at
+      } satisfies VerificationState
+    ])
+  );
 
   return (
     <>
@@ -182,6 +252,68 @@ export default async function BusinessPage({ params }: { params: { id: string } 
                     <p className="mt-0.5 text-xs text-ink-500">{item.description.slice(0, 120)}{item.description.length > 120 ? "…" : ""}</p>
                   </div>
                 </Link>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {checklistVerificationItems.length > 0 ? (
+          <section className="mt-8 animate-fade-up">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-bold text-ink-900">Document verification</h2>
+                <p className="mt-1 text-sm text-ink-500">
+                  Mark completed requirements and simulate a government database confirmation.
+                </p>
+              </div>
+              <span className="chip bg-slate-50 text-ink-600 ring-1 ring-inset ring-slate-200">
+                Demo registry check
+              </span>
+            </div>
+            <div className="space-y-3">
+              {checklistVerificationItems.map((item) => (
+                <div
+                  key={`${item.reportId}-${item.stepIndex}`}
+                  className="rounded-xl border border-slate-200 bg-white px-5 py-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="font-semibold text-ink-900">{item.title}</h3>
+                        <span className="badge-authority">{item.authority}</span>
+                      </div>
+                      <p className="mt-1 text-sm text-ink-500">
+                        {item.description.length > 140
+                          ? `${item.description.slice(0, 140)}…`
+                          : item.description}
+                      </p>
+                      {item.requiredDocuments.length > 0 ? (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {item.requiredDocuments.map((document) => (
+                            <span
+                              key={document}
+                              className="rounded-lg bg-slate-50 px-2.5 py-1 text-xs text-ink-700 ring-1 ring-inset ring-slate-200"
+                            >
+                              {document}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                  <DocumentVerificationButton
+                    reportId={item.reportId}
+                    stepIndex={item.stepIndex}
+                    itemTitle={item.title}
+                    authority={item.authority}
+                    requiredDocuments={item.requiredDocuments}
+                    initialVerification={
+                      verificationMap.get(
+                        verificationKey(item.reportId, "checklist_step", item.stepIndex)
+                      ) ?? null
+                    }
+                  />
+                </div>
               ))}
             </div>
           </section>
