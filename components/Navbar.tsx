@@ -26,26 +26,26 @@ export function Navbar({ email, authed = false }: NavbarProps) {
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/80 backdrop-blur-md no-print">
-      <div className="container-page flex h-16 items-center justify-between">
+      <div className="container-page flex min-h-16 flex-wrap items-center justify-between gap-3 py-3">
         <Logo href={authed ? "/dashboard" : "/"} />
 
         {authed ? (
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
             <Link
               href="/dashboard"
-              className="hidden text-sm font-medium text-ink-700 hover:text-brand-700 sm:block"
+              className="rounded-full bg-slate-50 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-brand-50 hover:text-brand-700 sm:bg-transparent sm:px-0 sm:py-0 sm:text-sm"
             >
               Dashboard
             </Link>
             <Link
               href="/profile"
-              className="hidden text-sm font-medium text-ink-700 hover:text-brand-700 sm:block"
+              className="rounded-full bg-slate-50 px-3 py-1.5 text-xs font-semibold text-ink-700 hover:bg-brand-50 hover:text-brand-700 sm:bg-transparent sm:px-0 sm:py-0 sm:text-sm"
             >
               Profile
             </Link>
             <Link
               href="/frustrated"
-              className="hidden text-sm font-medium text-ink-700 hover:text-brand-700 lg:block"
+              className="rounded-full bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-700 ring-1 ring-inset ring-brand-100 hover:bg-brand-100 sm:text-sm"
             >
               LexAI
             </Link>
@@ -57,7 +57,7 @@ export function Navbar({ email, authed = false }: NavbarProps) {
             <button
               onClick={handleSignOut}
               disabled={signingOut}
-              className="btn-secondary"
+              className="btn-secondary px-3 py-2 text-xs sm:px-5 sm:py-2.5 sm:text-sm"
             >
               {signingOut ? <Spinner className="h-4 w-4" /> : null}
               Sign out
