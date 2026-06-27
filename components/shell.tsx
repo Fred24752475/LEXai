@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Scale } from "lucide-react";
+import { LogoutButton } from "@/components/logout-button";
 
 export function PublicShell({ children }: { children: React.ReactNode }) {
   return (
@@ -46,6 +47,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link className="rounded-xl px-3 py-2 hover:bg-slate-100" href="/healthcheck">
               Health check
             </Link>
+            <LogoutButton />
           </nav>
         </div>
       </header>
