@@ -32,12 +32,47 @@ export function AnimatedDemo() {
     return () => clearTimeout(timeout);
   }, [step, typedName]);
 
+  const cursorPositionClass =
+    step <= 1
+      ? "left-[38%] top-[56%]"
+      : step === 2
+        ? "left-[47%] top-[47%]"
+        : "left-[73%] top-[76%]";
+
   return (
-    <div className="relative mx-auto mt-16 max-w-4xl animate-fade-up" style={{ animationDelay: "200ms" }}>
+    <div className="relative -mx-5 animate-fade-up sm:-mx-8 lg:-mx-16 xl:-mx-24" style={{ animationDelay: "200ms" }}>
       {/* Outer subtle glow/border to simulate the desktop environment */}
-      <div className="relative overflow-hidden rounded-[2rem] border border-slate-200/50 bg-brand-50 p-2 sm:p-4 shadow-2xl backdrop-blur-md ring-1 ring-slate-900/5">
+      <div className="relative overflow-hidden rounded-[2rem] border border-white/75 bg-brand-50/90 p-2 shadow-[0_26px_80px_rgba(15,23,42,0.2),0_2px_0_rgba(255,255,255,0.95)_inset,0_-1px_0_rgba(15,23,42,0.12)_inset,0_0_0_1px_rgba(255,255,255,0.65)] backdrop-blur-xl sm:p-5">
+        <div className="pointer-events-none absolute inset-0 rounded-[2rem]">
+          <div className="absolute inset-0 rounded-[2rem] ring-1 ring-white/70" />
+          <div className="absolute inset-[1.5px] rounded-[1.9rem] border border-slate-200/45" />
+          <div className="absolute inset-[1.5px] rounded-[1.9rem] shadow-[inset_0_1px_0_rgba(255,255,255,0.85),inset_0_-1px_0_rgba(15,23,42,0.16)]" />
+        </div>
         {/* Inner Browser/App Window */}
-        <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm h-[450px]">
+        <div className="relative h-[540px] overflow-hidden rounded-xl border border-white/70 bg-white shadow-[0_10px_40px_rgba(15,23,42,0.12),0_1px_0_rgba(255,255,255,0.85)_inset] sm:h-[620px]">
+          <div
+            className={`pointer-events-none absolute z-30 transition-all duration-700 ease-out ${cursorPositionClass}`}
+            aria-hidden="true"
+          >
+            <div className="relative">
+              <div className="absolute -inset-1.5 rounded-full bg-black/7 blur-sm" />
+              <svg
+                width="28"
+                height="28"
+                viewBox="0 0 28 28"
+                fill="none"
+                className="relative drop-shadow-[0_3px_6px_rgba(15,23,42,0.24)]"
+              >
+                <path
+                  d="M5 3.5 18.5 14.5 12.5 15.2 15.8 22.8 12.9 24 9.5 16.4 5.1 20.4 5 3.5Z"
+                  fill="white"
+                  stroke="#0f172a"
+                  strokeWidth="1.2"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </div>
+          </div>
           
           {/* Header Bar */}
           <div className="flex h-14 items-center justify-between border-b border-slate-100 bg-white px-4">

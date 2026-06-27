@@ -4,7 +4,7 @@ import { Logo } from "@/components/Logo";
 export default function NotFound() {
   return (
     <main className="min-h-screen">
-      <div className="container-page flex h-16 items-center">
+      <div className="header-bar">
         <Logo href="/" />
       </div>
       <div className="container-page flex flex-col items-center justify-center py-24 text-center">

@@ -10,7 +10,7 @@ export const metadata = {
 export default function LoginPage() {
   return (
     <main className="min-h-screen">
-      <div className="container-page flex h-16 items-center">
+      <div className="header-bar">
         <Logo href="/" />
       </div>
 
