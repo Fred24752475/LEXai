@@ -15,7 +15,8 @@ export function AuthForm() {
   const router = useRouter();
   const params = useSearchParams();
 
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const isDev = typeof window !== "undefined" && window.location.hostname === "localhost";
+  const origin = isDev ? "http://localhost:3000" : "https://lexai-h4is.onrender.com";
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
