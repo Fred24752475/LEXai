@@ -58,14 +58,23 @@ function readFileContext(file: File): Promise<Attachment> {
   });
 }
 
-export function FrustratedAssistant() {
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      role: "assistant",
-      content:
-        "Hey, I am LexAI. Tell me what is blocking you and I will help you plan the next step."
-    }
-  ]);
+const welcomeMessage: ChatMessage = {
+  role: "assistant",
+  content:
+    "Hey, I am LexAI. Tell me what is blocking you and I will help you plan the next step."
+};
+
+export function FrustratedAssistant({
+  initialConversationId,
+  initialMessages
+}: {
+  initialConversationId: string | null;
+  initialMessages: ChatMessage[];
+}) {
+  const [conversationId, setConversationId] = useState<string | null>(initialConversationId);
+  const [messages, setMessages] = useState<ChatMessage[]>(
+    initialMessages.length ? initialMessages : [welcomeMessage]
+  );
   const [input, setInput] = useState("");
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [loading, setLoading] = useState(false);
@@ -132,6 +141,7 @@ export function FrustratedAssistant() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        conversationId,
         messages: nextMessages.slice(-10),
         attachments
       })
@@ -145,19 +155,35 @@ export function FrustratedAssistant() {
     }
 
     const assistantMessage = { role: "assistant" as const, content: result.answer };
+    if (result.conversationId) setConversationId(result.conversationId);
     setMessages((current) => [...current, assistantMessage]);
     speak(result.answer);
+  }
+
+  function startNewConversation() {
+    setConversationId(null);
+    setMessages([welcomeMessage]);
+    setAttachments([]);
+    setInput("");
+    setError(null);
   }
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
       <section className="card flex min-h-[620px] flex-col overflow-hidden">
         <div className="border-b border-slate-100 bg-brand-50/70 p-5">
-          <span className="badge-authority">LexAI support</span>
-          <h1 className="mt-2 text-2xl font-bold text-ink-900">Are you frustrated?</h1>
-          <p className="mt-1 text-sm text-ink-600">
-            Talk to LexAI, upload documents, use your microphone, and optionally hear answers aloud.
-          </p>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <span className="badge-authority">LexAI support</span>
+              <h1 className="mt-2 text-2xl font-bold text-ink-900">Are you frustrated?</h1>
+              <p className="mt-1 text-sm text-ink-600">
+                Talk to LexAI, upload documents, use your microphone, and optionally hear answers aloud.
+              </p>
+            </div>
+            <button type="button" onClick={startNewConversation} className="btn-secondary">
+              New chat
+            </button>
+          </div>
         </div>
 
         <div className="flex-1 space-y-4 overflow-y-auto p-5">

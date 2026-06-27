@@ -12,6 +12,7 @@ const messageSchema = z.object({
 });
 
 const requestSchema = z.object({
+  conversationId: z.string().uuid().optional().nullable(),
   messages: z.array(messageSchema).min(1).max(12),
   attachments: z
     .array(
@@ -61,8 +62,52 @@ export async function POST(request: Request) {
         )
         .join("\n\n")}`
     : "";
+  const latestUserMessage = parsed.data.messages
+    .slice()
+    .reverse()
+    .find((message) => message.role === "user");
+
+  if (!latestUserMessage) {
+    return NextResponse.json({ error: "Send a user message first." }, { status: 400 });
+  }
 
   try {
+    let conversationId = parsed.data.conversationId ?? null;
+
+    if (conversationId) {
+      const { data: existing } = await supabase
+        .from("lexai_conversations")
+        .select("id")
+        .eq("id", conversationId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (!existing) conversationId = null;
+    }
+
+    if (!conversationId) {
+      const title = latestUserMessage.content.slice(0, 70) || "LexAI conversation";
+      const { data: conversation, error: conversationError } = await supabase
+        .from("lexai_conversations")
+        .insert({ user_id: user.id, title })
+        .select("id")
+        .single();
+
+      if (conversationError || !conversation) {
+        throw new Error(conversationError?.message ?? "Could not create conversation.");
+      }
+
+      conversationId = conversation.id;
+    }
+
+    await supabase.from("lexai_messages").insert({
+      conversation_id: conversationId,
+      user_id: user.id,
+      role: "user",
+      content: latestUserMessage.content,
+      attachments: parsed.data.attachments
+    });
+
     const answer = await runGrokText({
       system: `You are LexAI, a calm real-time support assistant inside LexGH.
 Help frustrated Ghanaian entrepreneurs solve compliance, business registration, tax, document, and app-flow problems.
@@ -72,7 +117,21 @@ Always give the next 2-4 concrete actions. If legal certainty is needed, suggest
       messages: parsed.data.messages
     });
 
-    return NextResponse.json({ answer });
+    await supabase.from("lexai_messages").insert({
+      conversation_id: conversationId,
+      user_id: user.id,
+      role: "assistant",
+      content: answer,
+      attachments: []
+    });
+
+    await supabase
+      .from("lexai_conversations")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", conversationId)
+      .eq("user_id", user.id);
+
+    return NextResponse.json({ answer, conversationId });
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "LexAI could not respond right now.";
