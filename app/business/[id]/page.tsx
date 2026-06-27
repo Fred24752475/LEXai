@@ -21,14 +21,7 @@ interface UrgentItem {
   authority: string;
   description: string;
   reportId: string;
-}
-
-interface ChecklistVerificationItem {
-  reportId: string;
   stepIndex: number;
-  title: string;
-  authority: string;
-  description: string;
   requiredDocuments: string[];
 }
 
@@ -79,44 +72,35 @@ function collectUrgentItems(reports: ReportRow[]): UrgentItem[] {
     if (report.report_type === "checklist") {
       const d = checklistSchema.safeParse(report.data);
       if (d.success) {
-        for (const step of d.data.steps) {
+        d.data.steps.forEach((step, index) => {
           if (step.priority === "high") {
-            items.push({ title: step.title, authority: step.authority, description: step.description, reportId: report.id });
+            items.push({
+              title: step.title,
+              authority: step.authority,
+              description: step.description,
+              reportId: report.id,
+              stepIndex: index,
+              requiredDocuments: step.requiredDocuments
+            });
           }
-        }
+        });
       }
     } else if (report.report_type === "healthcheck") {
       const d = healthCheckSchema.safeParse(report.data);
       if (d.success) {
-        for (const action of d.data.priorityActions) {
-          items.push({ title: action.title, authority: action.authority, description: action.description, reportId: report.id });
-        }
+        d.data.priorityActions.forEach((action, index) => {
+          items.push({
+            title: action.title,
+            authority: action.authority,
+            description: action.description,
+            reportId: report.id,
+            stepIndex: index,
+            requiredDocuments: []
+          });
+        });
       }
     }
   }
-  return items;
-}
-
-function collectChecklistVerificationItems(reports: ReportRow[]): ChecklistVerificationItem[] {
-  const items: ChecklistVerificationItem[] = [];
-
-  for (const report of reports) {
-    if (report.report_type !== "checklist") continue;
-    const parsed = checklistSchema.safeParse(report.data);
-    if (!parsed.success) continue;
-
-    parsed.data.steps.forEach((step, index) => {
-      items.push({
-        reportId: report.id,
-        stepIndex: index,
-        title: step.title,
-        authority: step.authority,
-        description: step.description,
-        requiredDocuments: step.requiredDocuments
-      });
-    });
-  }
-
   return items;
 }
 
@@ -170,7 +154,6 @@ export default async function BusinessPage({ params }: { params: { id: string } 
 
   const reports = (business.compliance_reports ?? []) as ReportRow[];
   const urgentItems = collectUrgentItems(reports);
-  const checklistVerificationItems = collectChecklistVerificationItems(reports);
   const complianceStatuses = getComplianceStatuses(reports);
   const reportIds = reports.map((report) => report.id);
   const { data: verifications } = reportIds.length
@@ -240,7 +223,8 @@ export default async function BusinessPage({ params }: { params: { id: string } 
             </div>
             <div className="space-y-2">
               {urgentItems.map((item, i) => (
-                <Link key={i} href={`/report/${item.reportId}`} className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50/40 px-4 py-3 transition hover:border-red-300 hover:bg-red-50">
+                <div key={`${item.reportId}-${item.stepIndex}-${i}`} className="rounded-xl border border-red-200 bg-red-50/40 px-4 py-3">
+                  <div className="flex items-start gap-3">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 shrink-0 text-red-500" aria-hidden="true">
                     <path d="M12 9v4" /><path d="M12 17h.01" /><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
                   </svg>
@@ -251,55 +235,6 @@ export default async function BusinessPage({ params }: { params: { id: string } 
                     </div>
                     <p className="mt-0.5 text-xs text-ink-500">{item.description.slice(0, 120)}{item.description.length > 120 ? "…" : ""}</p>
                   </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        {checklistVerificationItems.length > 0 ? (
-          <section className="mt-8 animate-fade-up">
-            <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-bold text-ink-900">Document verification</h2>
-                <p className="mt-1 text-sm text-ink-500">
-                  Mark completed requirements and simulate a government database confirmation.
-                </p>
-              </div>
-              <span className="chip bg-slate-50 text-ink-600 ring-1 ring-inset ring-slate-200">
-                Demo registry check
-              </span>
-            </div>
-            <div className="space-y-3">
-              {checklistVerificationItems.map((item) => (
-                <div
-                  key={`${item.reportId}-${item.stepIndex}`}
-                  className="rounded-xl border border-slate-200 bg-white px-5 py-4"
-                >
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="font-semibold text-ink-900">{item.title}</h3>
-                        <span className="badge-authority">{item.authority}</span>
-                      </div>
-                      <p className="mt-1 text-sm text-ink-500">
-                        {item.description.length > 140
-                          ? `${item.description.slice(0, 140)}…`
-                          : item.description}
-                      </p>
-                      {item.requiredDocuments.length > 0 ? (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {item.requiredDocuments.map((document) => (
-                            <span
-                              key={document}
-                              className="rounded-lg bg-slate-50 px-2.5 py-1 text-xs text-ink-700 ring-1 ring-inset ring-slate-200"
-                            >
-                              {document}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
-                    </div>
                   </div>
                   <DocumentVerificationButton
                     reportId={item.reportId}
