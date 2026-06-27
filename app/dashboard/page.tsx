@@ -311,8 +311,8 @@ export default async function DashboardPage() {
             {rows.map((biz) => (
               <div key={biz.id} className="card p-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700">
+                  <Link href={`/business/${biz.id}`} className="flex items-center gap-3 group">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700 transition group-hover:bg-brand-100">
                       <svg
                         width="20"
                         height="20"
@@ -330,13 +330,13 @@ export default async function DashboardPage() {
                       </svg>
                     </span>
                     <div>
-                      <h2 className="font-semibold text-ink-900">{biz.name}</h2>
+                      <h2 className="font-semibold text-ink-900 transition group-hover:text-brand-700">{biz.name}</h2>
                       <p className="text-xs text-ink-500">
                         {biz.type === "new" ? "New business" : "Existing business"}{" "}
                         · added {formatDate(biz.created_at)}
                       </p>
                     </div>
-                  </div>
+                  </Link>
                 </div>
 
                 <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
