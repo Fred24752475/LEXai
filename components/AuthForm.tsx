@@ -16,8 +16,17 @@ export function AuthForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [resending, setResending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  function emailRedirectTo() {
+    return `${window.location.origin}/auth/callback?next=/onboarding`;
+  }
+
+  function isEmailNotConfirmed(message: string) {
+    return /email.*not.*confirm|confirm.*email|not.*verified|verify.*email/i.test(message);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -32,13 +41,16 @@ export function AuthForm() {
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            emailRedirectTo: emailRedirectTo()
+          }
         });
         if (error) throw error;
 
         // If email confirmation is enabled, there is no active session yet.
         if (!data.session) {
           setNotice(
-            "Account created. If email confirmation is on, check your inbox, then log in."
+            "Account created. We sent you a verification email. Verify your email first, then log in to continue."
           );
           setMode("login");
           setLoading(false);
@@ -49,7 +61,14 @@ export function AuthForm() {
           email,
           password,
         });
-        if (error) throw error;
+        if (error) {
+          if (isEmailNotConfirmed(error.message)) {
+            setError("Please verify your email before logging in. Check your inbox for the LexGH verification link.");
+            setLoading(false);
+            return;
+          }
+          throw error;
+        }
       }
 
       router.push(redirectedFrom === "/dashboard" ? "/onboarding" : redirectedFrom);
@@ -60,6 +79,34 @@ export function AuthForm() {
       );
       setLoading(false);
     }
+  }
+
+  async function handleResendVerification() {
+    setError(null);
+    setNotice(null);
+
+    if (!email) {
+      setError("Enter your email first, then request another verification link.");
+      return;
+    }
+
+    setResending(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email,
+      options: {
+        emailRedirectTo: emailRedirectTo()
+      }
+    });
+    setResending(false);
+
+    if (error) {
+      setError(error.message);
+      return;
+    }
+
+    setNotice("Verification email sent again. Check your inbox and spam folder.");
   }
 
   async function handleGoogleSignIn() {
@@ -205,6 +252,17 @@ export function AuthForm() {
           {loading ? <Spinner className="h-4 w-4" /> : null}
           {mode === "login" ? "Log in" : "Create account"}
         </button>
+        {mode === "login" ? (
+          <button
+            type="button"
+            onClick={handleResendVerification}
+            disabled={resending}
+            className="btn-secondary w-full"
+          >
+            {resending ? <Spinner className="h-4 w-4" /> : null}
+            Resend verification email
+          </button>
+        ) : null}
       </form>
     </div>
   );
