@@ -5,13 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Spinner } from "./Spinner";
 
-const GOOGLE_REDIRECT = "https://lexai-h4is.onrender.com/auth/callback";
-
 export function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialMode = searchParams.get("mode") === "signup" ? "signup" : "login";
-  const redirectedFrom = searchParams.get("redirectedFrom") || "/dashboard";
+  const redirectedFrom = searchParams.get("redirectedFrom") || "/onboarding";
 
   const [mode, setMode] = useState<"login" | "signup">(initialMode);
   const [email, setEmail] = useState("");
@@ -54,7 +52,7 @@ export function AuthForm() {
         if (error) throw error;
       }
 
-      router.push(redirectedFrom);
+      router.push(redirectedFrom === "/dashboard" ? "/onboarding" : redirectedFrom);
       router.refresh();
     } catch (err) {
       setError(
@@ -70,7 +68,9 @@ export function AuthForm() {
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: GOOGLE_REDIRECT },
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback?next=/onboarding`
+      },
     });
     if (error) {
       setError(error.message);

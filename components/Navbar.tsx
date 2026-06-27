@@ -37,6 +37,12 @@ export function Navbar({ email, authed = false }: NavbarProps) {
             >
               Dashboard
             </Link>
+            <Link
+              href="/offices"
+              className="hidden text-sm font-medium text-ink-700 hover:text-brand-700 sm:block"
+            >
+              Offices
+            </Link>
             {email ? (
               <span className="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-ink-700 md:inline">
                 {email}
