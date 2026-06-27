@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { FileText, PlusCircle, ShieldCheck } from "lucide-react";
 import { ButtonLink } from "@/components/button";

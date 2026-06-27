@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/shell";
 import { ReportRenderer } from "@/components/report-renderer";
