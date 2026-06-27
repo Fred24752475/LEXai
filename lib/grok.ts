@@ -96,3 +96,24 @@ export async function runGrokJson<T>({
 
   throw new Error("Groq did not return valid structured data. Please try again.");
 }
+
+export async function runGrokText({
+  system,
+  messages,
+}: {
+  system: string;
+  messages: { role: "user" | "assistant"; content: string }[];
+}): Promise<string> {
+  const grok = getGrokClient();
+  const response = await grok.chat.completions.create({
+    model: GROQ_MODEL,
+    messages: [{ role: "system", content: system }, ...messages],
+    temperature: 0.35,
+    max_tokens: 1200,
+  });
+
+  return (
+    response.choices[0]?.message?.content?.trim() ||
+    "I could not generate a response right now. Please try again."
+  );
+}

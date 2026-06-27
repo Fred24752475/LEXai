@@ -9,7 +9,8 @@ const protectedRoutes = [
   "/business",
   "/onboarding",
   "/offices",
-  "/profile"
+  "/profile",
+  "/frustrated"
 ];
 
 type CookieToSet = {

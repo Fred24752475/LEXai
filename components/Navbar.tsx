@@ -43,6 +43,12 @@ export function Navbar({ email, authed = false }: NavbarProps) {
             >
               Profile
             </Link>
+            <Link
+              href="/frustrated"
+              className="hidden text-sm font-medium text-ink-700 hover:text-brand-700 lg:block"
+            >
+              LexAI
+            </Link>
             {email ? (
               <span className="hidden rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-ink-700 md:inline">
                 {email}
